@@ -1,14 +1,17 @@
 
 var StarsFrame = React.createClass({
   render: function() {
+    var numberOfStars = Math.floor(Math.random() * 9) + 1;
+    
+    var stars = [];
+    for (var i = 0; i < numberOfStars; i++) {
+      stars.push(<span className="glyphicon glyphicon-star"></span>);
+    }
+    
     return (
       <div id="stars-frame">
         <div className="well">
-          <span className="glyphicon glyphicon-star"></span>
-          <span className="glyphicon glyphicon-star"></span>
-          <span className="glyphicon glyphicon-star"></span>
-          <span className="glyphicon glyphicon-star"></span>
-          <span className="glyphicon glyphicon-star"></span>
+        {stars}
         </div>
       </div>
     );
@@ -37,6 +40,24 @@ var AnswerFrame = React.createClass({
   }
 });
 
+var NumbersFrame = React.createClass({
+  render: function() {
+    
+    var numbers = [];
+    for (var i = 1; i <= 9; i++) {
+      numbers.push(<div className="number">{i}</div>);
+    }
+    
+    return (
+      <div id="numbers-frame">
+        <div className="well">
+        {numbers}
+        </div>
+      </div>
+    );
+  }
+});
+
 var Game = React.createClass({
   render: function() {
     return (
@@ -48,6 +69,8 @@ var Game = React.createClass({
           <ButtonFrame />
           <AnswerFrame />
         </div>
+        
+        <NumbersFrame />
       </div>
     );
   }
