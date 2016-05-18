@@ -23,13 +23,45 @@ var Card = React.createClass({
   }
 });
 
-var Main = React.createClass({
-
+var Form = React.createClass({
+  
+  handleSubmit: function(e) {
+    e.preventDefault();
+    var loginInput = this.refs.login;
+    this.props.addCard(loginInput.value);
+    loginInput.value = '';
+  },
+  
   render: function() {
     return (
+      <form onSubmit={this.handleSubmit}>
+        <input placeholder="github login" ref="login" />
+        <button>Add</button>
+      </form>
+    );
+  }
+});
+
+var Main = React.createClass({
+  
+  getInitialState: function() {
+    return {
+      logins: []
+    };
+  },
+  
+  addCard: function(login) {
+    this.setState({ logins: this.state.logins.concat([login]) });
+  },
+
+  render: function() {
+    var cards = this.state.logins.map(function (login) {
+      return (<Card key={login} login={login} />);
+    });
+    return (
       <div>
-        <Card login="jeanroldao" />
-        <Card login="petehunt" />
+        <Form addCard={this.addCard} />
+        {cards}
       </div>
     );
   }
