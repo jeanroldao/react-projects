@@ -19,11 +19,50 @@ var StarsFrame = React.createClass({
 
 var ButtonFrame = React.createClass({
   render: function() {
-    var disabled = this.props.selectedNumbers.length == 0;
+    var disabled, button;
+    var correct = this.props.correct;
+    
+    switch (correct) {
+      case true:
+        button = (
+          <button 
+            className="btn btn-success btn-lg" 
+            onClick={this.props.acceptAnswer}>
+            <span className="glyphicon glyphicon-ok"></span>
+          </button>
+        );
+        break;
+      case false:
+        button = (
+          <button 
+            className="btn btn-danger btn-lg" >
+            <span className="glyphicon glyphicon-remove"></span>
+          </button>
+        );
+        break;
+      default:
+        disabled = (this.props.selectedNumbers.length == 0);
+        button = (
+          <button 
+            className="btn btn-primary btn-lg" 
+            disabled={disabled}
+            onClick={this.props.checkAnswer}>
+            =
+          </button>
+        );
+    }
     
     return (
       <div id="button-frame">
-        <button className="btn btn-primary btn-lg" disabled={disabled}>=</button>
+      {button}
+      <br /><br />
+      <button className="btn btn-warning btn-xs" 
+              onClick={this.props.redraw}
+              disabled={this.props.redraws === 0}>
+        <span className="glyphicon glyphicon-refresh"></span>
+        &nbsp;
+        {this.props.redraws}
+      </button>
       </div>
     );
   }
@@ -61,7 +100,10 @@ var NumbersFrame = React.createClass({
     var numbers = [];
     for (var i = 1; i <= 9; i++) {
       var selected = this.props.selectedNumbers.indexOf(i) >= 0;
-      var className = 'number selected-' + selected;
+      var used = this.props.usedNumbers.indexOf(i) >= 0;
+      
+      var className = ('number selected-' + selected);
+      className += (' used-' + used);
       numbers.push(
         <div key={i} className={className} onClick={selectNumber.bind(null, i)}>
           {i}
@@ -79,19 +121,46 @@ var NumbersFrame = React.createClass({
   }
 });
 
+var DoneFrame = React.createClass({
+  render: function() {
+    return (
+      <div className="well text-center">
+        <h2>{this.props.doneStatus}</h2>
+        <button className="btn btn-default" onClick={this.props.resetGame}>
+          Play Again
+        </button>
+      </div>
+    );
+  }
+});
+
 var Game = React.createClass({
   
   getInitialState: function() {
     return { 
       selectedNumbers: [],
-      numberOfStars: Math.floor(Math.random() * 9) + 1
+      usedNumbers: [],
+      numberOfStars: this.randomNumber(),
+      correct: null,
+      redraws: 5,
+      doneStatus: null
     };
   },
   
+  resetGame: function() {
+    this.replaceState(this.getInitialState());
+  },
+  
+  randomNumber: function() {
+    return Math.floor(Math.random() * 9) + 1
+  },
+  
   selectNumber: function(selectedNumber) {
-    if (this.state.selectedNumbers.indexOf(selectedNumber) < 0) {
+    if (this.state.selectedNumbers.indexOf(selectedNumber) < 0 
+      && this.state.usedNumbers.indexOf(selectedNumber) < 0 ) {
       this.setState({ 
-        selectedNumbers: this.state.selectedNumbers.concat(selectedNumber) 
+        selectedNumbers: this.state.selectedNumbers.concat(selectedNumber),
+        correct: null
       });
     }
   },
@@ -101,24 +170,121 @@ var Game = React.createClass({
       return n != clickedNumber;
     });
     
-    this.setState({ selectedNumbers: selectedNumbers });
+    this.setState({ 
+      selectedNumbers: selectedNumbers,
+      correct: null
+    });
+  },
+  
+  sumOfSelectedNumbers: function() {
+    return this.state.selectedNumbers.reduce(function(sum, number) {
+      return sum + number;
+    }, 0);
+  },
+  
+  checkAnswer: function() {
+    var correct = (this.state.numberOfStars === this.sumOfSelectedNumbers());
+    this.setState({ correct: correct });
+  },
+  
+  acceptAnswer: function() {
+    var usedNumbers = this.state.usedNumbers.concat(this.state.selectedNumbers);
+    this.setState({
+      selectedNumbers: [],
+      usedNumbers: usedNumbers,
+      correct: null,
+      numberOfStars: this.randomNumber()
+    }, function() {
+      this.updateDoneStatus();
+    });
+  },
+  
+  redraw: function() {
+    if (this.state.redraws > 0) {
+      this.setState({
+        numberOfStars: this.randomNumber(),
+        selectedNumbers: [],
+        correct: null,
+        redraws: this.state.redraws - 1
+      }, function() {
+        this.updateDoneStatus();
+      });
+    }
+  },
+  
+  posibleSolution: function () {
+    var numberOfStars = this.state.numberOfStars;
+    var possibleNumbers = [];
+    var usedNumbers = this.state.usedNumbers;
+    
+    for (var i = 1; i <= 9; i++) {
+      if (usedNumbers.indexOf(i) < 0) {
+        possibleNumbers.push(i);
+      }
+    }
+    
+    return this.possibleCombinationSum(possibleNumbers, numberOfStars);
+  },
+  
+  possibleCombinationSum: function(arr, n) {
+    if (arr.indexOf(n) >= 0) { return true; }
+    if (arr[0] > n) { return false; }
+    if (arr[arr.length - 1] > n) {
+      arr.pop();
+      return this.possibleCombinationSum(arr, n);
+    }
+    var listSize = arr.length, combinationsCount = (1 << listSize)
+    for (var i = 1; i < combinationsCount ; i++ ) {
+      var combinationSum = 0;
+      for (var j=0 ; j < listSize ; j++) {
+        if (i & (1 << j)) { combinationSum += arr[j]; }
+      }
+      if (n === combinationSum) { return true; }
+    }
+    return false;
+  },
+  
+  updateDoneStatus: function() {
+    
+    if (this.state.usedNumbers.length === 9) {
+      this.setState({ doneStatus: 'Done. Nice!' });
+      return;
+    }
+    
+    if (this.state.redraws === 0 && !this.posibleSolution()) {
+      this.setState({ doneStatus: 'Game Over!' });
+    }
   },
   
   render: function() {
+    
+    var bottomFrame;
+    if (this.state.doneStatus) {
+      bottomFrame = <DoneFrame doneStatus={this.state.doneStatus}
+                               resetGame={this.resetGame} />;
+    } else {
+      bottomFrame = <NumbersFrame selectedNumbers={this.state.selectedNumbers}
+                      selectNumber={this.selectNumber}
+                      usedNumbers={this.state.usedNumbers} />
+    }
     return (
       <div id="game">
         <h2>Play Nine</h2>
         <hr />
         <div className="clearfix">
           <StarsFrame numberOfStars={this.state.numberOfStars} />
-          <ButtonFrame selectedNumbers={this.state.selectedNumbers} />
+          <ButtonFrame selectedNumbers={this.state.selectedNumbers}
+                       correct={this.state.correct}
+                       checkAnswer={this.checkAnswer}
+                       acceptAnswer={this.acceptAnswer}
+                       redraw={this.redraw}
+                       redraws={this.state.redraws}
+                       />
           <AnswerFrame 
             selectedNumbers={this.state.selectedNumbers}
             unselectNumber={this.unselectNumber} />
         </div>
-        
-        <NumbersFrame selectedNumbers={this.state.selectedNumbers}
-          selectNumber={this.selectNumber} />
+        {bottomFrame}
       </div>
     );
   }
